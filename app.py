@@ -27,7 +27,12 @@ vpc_peers = MentorshipNetworkingStack(
     # For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html
 )
 
-InstanceStack(app, "InstancePeersStack", vpc_props=vpc_peers, sg_ids=vpc_peers.security_group_ids)
+InstanceStack(
+    app,
+    "InstancePeersStack",
+    vpc_props=vpc_peers,
+    sg_ids=vpc_peers.security_group_ids,
+)
 PeeringStack(app, "PeeringStack", vpc_peers.created_vpcs)
 
 

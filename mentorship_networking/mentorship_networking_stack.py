@@ -2,9 +2,13 @@ import json
 import os
 
 from aws_cdk import Stack
-from aws_cdk import aws_ec2 as ec2  # Duration,; aws_sqs as sqs,
+from aws_cdk import aws_apigateway as apigw
+from aws_cdk import aws_ec2 as ec2
+from aws_cdk import aws_lambda as _lambda
 from constructs import Construct
 from dotenv import load_dotenv
+
+from .hitcounter import HitCounter
 
 
 class MentorshipNetworkingStack(Stack):
@@ -12,8 +16,6 @@ class MentorshipNetworkingStack(Stack):
         self, scope: Construct, construct_id: str, vpc_props: dict, **kwargs
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
-
-        # The code that defines your stack goes here
 
         # Code for creating one VPC
         # self.vpc1 = ec2.Vpc(self, 'demovpc1',
@@ -73,7 +75,7 @@ class MentorshipNetworkingStack(Stack):
                     ],
                 )
             )
-        
+
         self.security_group_ids = []
         for index, vpc in enumerate(created_vpcs, start=1):
             # create the security group
@@ -93,3 +95,22 @@ class MentorshipNetworkingStack(Stack):
                 )
             self.security_group_ids.append(vpc_sg.security_group_id)
         self.created_vpcs = created_vpcs
+
+        # Add lambda
+        hello_lambda = _lambda.Function(
+            self,
+            "HelloHandler",
+            runtime=_lambda.Runtime.PYTHON_3_9,
+            code=_lambda.Code.from_asset("lambda"),
+            handler="hello.handler",
+        )
+
+        # Add hit counter for lambda
+        hello_with_counter = HitCounter(
+            self,
+            "HelloHitCounter",
+            downstream=hello_lambda,
+        )
+
+        # Add gateway
+        apigw.LambdaRestApi(self, "Endpoint", handler=hello_with_counter._handler)
