@@ -1,6 +1,10 @@
+import json
+import os
+
 from aws_cdk import Stack
 from aws_cdk import aws_ec2 as ec2  # Duration,; aws_sqs as sqs,
 from constructs import Construct
+from dotenv import load_dotenv
 
 
 class MentorshipNetworkingStack(Stack):
@@ -42,6 +46,10 @@ class MentorshipNetworkingStack(Stack):
         #         )
         #     count += 1
 
+        # read allowed ip addresses
+        load_dotenv()
+        allowed_cidrs = json.loads(os.getenv("ALLOWED_IPS"))
+
         created_vpcs = []
         cidrs = vpc_props["vpc_setups"]["cidrs"]
         for i, cidr in enumerate(cidrs, start=1):
@@ -65,14 +73,23 @@ class MentorshipNetworkingStack(Stack):
                     ],
                 )
             )
+        
+        self.security_group_ids = []
         for index, vpc in enumerate(created_vpcs, start=1):
-            ec2.SecurityGroup.from_security_group_id(
+            # create the security group
+            vpc_sg = ec2.SecurityGroup(
                 self,
                 f"DefaultSecurityGroup{index}",
-                vpc.vpc_default_security_group,
-            ).add_ingress_rule(
-                ec2.Peer.any_ipv4(),
-                ec2.Port.icmp_ping(),
-                "Allow ping from anywhere",
+                vpc=vpc,
+                allow_all_outbound=True,
+                description=f"Security group for VPC{index}",
             )
+            # Add ingress rule
+            for cidr in allowed_cidrs:
+                vpc_sg.add_ingress_rule(
+                    ec2.Peer.ipv4(cidr),
+                    ec2.Port.tcp(443),
+                    f"Allow https access for internal {cidr}",
+                )
+            self.security_group_ids.append(vpc_sg.security_group_id)
         self.created_vpcs = created_vpcs
