@@ -5,7 +5,7 @@ from aws_cdk import Stack
 from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_rds as rds
 
-from cdk_ec2_key_pair import KeyPair
+# from cdk_ec2_key_pair import KeyPair
 from constructs import Construct
 
 
@@ -33,38 +33,38 @@ class InstanceStack(Stack):
             # )
 
             # Create an EC2 in the public subnet
-            # user_data = ec2.UserData.for_linux()
-            # user_data.add_commands('')
-            key = KeyPair(self, f"keypair{index}", name=f"cdk-keypair{index}", description="{index} Key pair created with cdk deployment")
-            instance_name = f"InstancePublic{index}"
-            public_instance = ec2.BastionHostLinux(
-                self,
-                instance_name,
-                vpc=vpc,
-                subnet_selection=ec2.SubnetSelection(
-                    subnet_type=ec2.SubnetType.PUBLIC
-                ),
-                security_group=ec2.SecurityGroup.from_security_group_id(
-                    self, f"{instance_name}SecurityGroup", sg_ids[index - 1]
-                ),
-            )
-
-            public_instance.instance.instance.add_property_override('KeyName', key.key_pair_name)
-
-            # instance_resource = ec2.BastionHostLinux(
+            # Also created the keypair. The private
+            # Key gets stored inside AWS secrets manager
+            # paired the keys with the EC2s by overriding
+            # the property value 'KeyName' wiht the keyPair
+            # key_pair_name value and was able to SSH into
+            # the EC2
+            # This method however doesn't seem very friendly
+            # for deploying the code. I either need to use
+            # the Fargate or Elastic to deploy the code.
+            # Possibly for the purpose of this I will go with 
+            # Fargate
+            # key = KeyPair(self, f"keypair{index}", name=f"cdk-keypair{index}", description="{index} Key pair created with cdk deployment")
+            # instance_name = f"InstancePublic{index}"
+            # public_instance = ec2.BastionHostLinux(
             #     self,
             #     instance_name,
             #     vpc=vpc,
-            #     instance_name=instance_name,
+            #     subnet_selection=ec2.SubnetSelection(
+            #         subnet_type=ec2.SubnetType.PUBLIC
+            #     ),
             #     security_group=ec2.SecurityGroup.from_security_group_id(
             #         self, f"{instance_name}SecurityGroup", sg_ids[index - 1]
             #     ),
             # )
-            cdk.CfnOutput(
-                self,
-                f"{instance_name}PublicIP",
-                value=public_instance.instance_public_ip,
-            )
+
+            # public_instance.instance.instance.add_property_override('KeyName', key.key_pair_name)
+
+            # cdk.CfnOutput(
+            #     self,
+            #     f"{instance_name}PublicIP",
+            #     value=public_instance.instance_public_ip,
+            # )
 
             # Create the db in private subnet of first VPC
             if index == 1:
@@ -94,9 +94,9 @@ class InstanceStack(Stack):
                     database_name="todosdb",
                     publicly_accessible=False,
                 )
-                db_instance.connections.allow_from(
-                    public_instance, ec2.Port.tcp(5432)
-                )
+                # db_instance.connections.allow_from(
+                #     public_instance, ec2.Port.tcp(5432)
+                # )
 
                 cdk.CfnOutput(
                     self,

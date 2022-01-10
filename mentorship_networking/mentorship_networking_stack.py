@@ -102,9 +102,9 @@ class MentorshipNetworkingStack(Stack):
                     f"Allow https access for internal {cidr}",
                 )
 
-                vpc_sg.add_ingress_rule(
-                    ec2.Peer.ipv4(cidr), ec2.Port.tcp(22), "Allow SSH access"
-                )
+                # vpc_sg.add_ingress_rule(
+                #     ec2.Peer.ipv4(cidr), ec2.Port.tcp(22), "Allow SSH access"
+                # )
 
             self.security_group_ids.append(vpc_sg.security_group_id)
         self.created_vpcs = created_vpcs
