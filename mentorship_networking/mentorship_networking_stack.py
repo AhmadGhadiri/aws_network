@@ -1,14 +1,15 @@
 import json
 import os
 
+# from aws_cdk import aws_apigateway as apigw
 from aws_cdk import Stack
-from aws_cdk import aws_apigateway as apigw
 from aws_cdk import aws_ec2 as ec2
-from aws_cdk import aws_lambda as _lambda
+
+# from aws_cdk import aws_lambda as _lambda
 from constructs import Construct
 from dotenv import load_dotenv
 
-from .hitcounter import HitCounter
+# from .hitcounter import HitCounter
 
 
 class MentorshipNetworkingStack(Stack):
@@ -54,6 +55,12 @@ class MentorshipNetworkingStack(Stack):
 
         created_vpcs = []
         cidrs = vpc_props["vpc_setups"]["cidrs"]
+
+        # Create 2 VPC with Internet gateway
+        # RDS and EC2 instances must be launched in a VPC
+        # When using CDK VPC construct, an Internet Gateway is created by default
+        # whenever you create a public subnet. The default route is also setup for
+        # the public subnet. So there is no need for adding a gateway.
         for i, cidr in enumerate(cidrs, start=1):
             created_vpcs.append(
                 ec2.Vpc(
@@ -67,10 +74,11 @@ class MentorshipNetworkingStack(Stack):
                             name="public",
                             subnet_type=ec2.SubnetType.PUBLIC,
                         ),
+                        # RDS will be initiated in a private subnet without NAT gateway
                         ec2.SubnetConfiguration(
                             cidr_mask=27,
                             name="private",
-                            subnet_type=ec2.SubnetType.PRIVATE_WITH_NAT,
+                            subnet_type=ec2.SubnetType.PRIVATE_ISOLATED,
                         ),
                     ],
                 )
@@ -93,24 +101,29 @@ class MentorshipNetworkingStack(Stack):
                     ec2.Port.tcp(443),
                     f"Allow https access for internal {cidr}",
                 )
+
+                vpc_sg.add_ingress_rule(
+                    ec2.Peer.ipv4(cidr), ec2.Port.tcp(22), "Allow SSH access"
+                )
+
             self.security_group_ids.append(vpc_sg.security_group_id)
         self.created_vpcs = created_vpcs
 
         # Add lambda
-        hello_lambda = _lambda.Function(
-            self,
-            "HelloHandler",
-            runtime=_lambda.Runtime.PYTHON_3_9,
-            code=_lambda.Code.from_asset("lambda"),
-            handler="hello.handler",
-        )
+        # hello_lambda = _lambda.Function(
+        #     self,
+        #     "HelloHandler",
+        #     runtime=_lambda.Runtime.PYTHON_3_9,
+        #     code=_lambda.Code.from_asset("lambda"),
+        #     handler="hello.handler",
+        # )
 
-        # Add hit counter for lambda
-        hello_with_counter = HitCounter(
-            self,
-            "HelloHitCounter",
-            downstream=hello_lambda,
-        )
+        # # Add hit counter for lambda
+        # hello_with_counter = HitCounter(
+        #     self,
+        #     "HelloHitCounter",
+        #     downstream=hello_lambda,
+        # )
 
-        # Add gateway
-        apigw.LambdaRestApi(self, "Endpoint", handler=hello_with_counter._handler)
+        # # Add gateway
+        # apigw.LambdaRestApi(self, "Endpoint", handler=hello_with_counter._handler)
